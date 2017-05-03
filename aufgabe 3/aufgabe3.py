@@ -86,7 +86,7 @@ def build_cnn(input_var=None, activation=lasagne.nonlinearities.rectify, w_init=
     net['out']      = lasagne.layers.DenseLayer(    net['pool2'], num_units=10, nonlinearity=lasagne.nonlinearities.sigmoid)
 
     return net
-
+    '''
     # As a third model, we'll create a CNN of two convolution + pooling stages
     # and a fully-connected hidden layer in front of the output layer.
 
@@ -128,7 +128,7 @@ def build_cnn(input_var=None, activation=lasagne.nonlinearities.rectify, w_init=
             nonlinearity=lasagne.nonlinearities.softmax)
 
     return network
-
+    '''
 
 # ############################# Batch iterator ###############################
 # This is just a simple helper function iterating over training data in
@@ -196,8 +196,8 @@ def main(model='cnn', num_epochs=500):
     # here is that we do a deterministic forward pass through the network,
     # disabling dropout layers.
     test_prediction = lasagne.layers.get_output(network['out'], deterministic=True)
-    test_loss = lasagne.objectives.squared_error(test_prediction, target_var)
-#    test_loss = lasagne.objectives.categorical_crossentropy(test_prediction, target_var)
+#    test_loss = lasagne.objectives.squared_error(test_prediction, target_var)
+    test_loss = lasagne.objectives.categorical_crossentropy(test_prediction, target_var)
     test_loss = test_loss.mean()
     # As a bonus, also create an expression for the classification accuracy:
     test_acc = T.mean(T.eq(T.argmax(test_prediction, axis=1), target_var),
