@@ -9,7 +9,7 @@ import theano.tensor as T
 import lasagne
 
 def loadMnist():
-    # We first define a download function, supporting both Python 2 and 3.
+
     if sys.version_info[0] == 2:
         from urllib import urlretrieve
     else:
@@ -19,36 +19,30 @@ def loadMnist():
         print("Downloading %s" % filename)
         urlretrieve(source + filename, filename)
 
-    # We then define functions for loading MNIST images and labels.
-    # For convenience, they also download the requested files if needed.
     import gzip
 
     def load_mnist_images(filename):
         if not os.path.exists(filename):
             download(filename)
-        # Read the inputs in Yann LeCun's binary format.
+
         with gzip.open(filename, 'rb') as f:
             data = np.frombuffer(f.read(), np.uint8, offset=16)
-        # The inputs are vectors now, we reshape them to monochrome 2D images,
-        # following the shape convention: (examples, channels, rows, columns)
+
         data = data.reshape(-1, 1, 28, 28)
-        # The inputs come as bytes, we convert them to float32 in range [0,1].
-        # (Actually to range [0, 255/256], for compatibility to the version
-        # provided at http://deeplearning.net/data/mnist/mnist.pkl.gz.)
+
         return data / np.float32(256)
 
     def load_mnist_labels(filename):
         if not os.path.exists(filename):
             download(filename)
-        # Read the labels in Yann LeCun's binary format.
+
         with gzip.open(filename, 'rb') as f:
             data = np.frombuffer(f.read(), np.uint8, offset=8)
-        # The labels are vectors of integers now, that's exactly what we want.
+
         labels = np.zeros((len(data), 10))
         labels[np.arange(len(data)), data] = 1
         return labels
 
-    # We can now download and read the training and test set images and labels.
     X_train = load_mnist_images('train-images-idx3-ubyte.gz')
     y_train = load_mnist_labels('train-labels-idx1-ubyte.gz')
     X_test = load_mnist_images('t10k-images-idx3-ubyte.gz')
@@ -80,6 +74,7 @@ def cnn(inputs=None, activation=lasagne.nonlinearities.rectify, w_init=lasagne.i
     return net
 
 def minibatches(inputs, targets, mbs, shuffle):
+
     if(shuffle == True):
         idx = np.arange(len(inputs))
         np.random.shuffle(idx)
@@ -91,7 +86,7 @@ def minibatches(inputs, targets, mbs, shuffle):
         yield inputs[batchIdx], targets[batchIdx]
 
 
-def main(mbs=128, gd=lasagne.updates.momentum, epochs=60):
+def main(mbs=128, gd=lasagne.updates.rmsprop, epochs=60, eta=.01, eps=.95, rho=1e-6, mom=.9):
 
     #Loading MNIST, taken from Theano example mnist.py
     print('Loading MNIST dataset...')
@@ -116,12 +111,12 @@ def main(mbs=128, gd=lasagne.updates.momentum, epochs=60):
     #updates
     params = lasagne.layers.get_all_params(net['out'], trainable=True)
 
-    if(gd == lasagne.updates.adadelta):
-        updates = gd(loss, params, learning_rate=.01)
-    elif(gd == lasagne.updates.rmsprop):
-        updates = gd(loss, params, learning_rate=.01)
+    if(gd == lasagne.updates.adadelta or gd == lasagne.updates.rmsprop):
+        print("Using {} for updates with learning rate: {}, epsilon: {}, rho: {}".format(gd.__name__, eta, eps, rho))
+        updates = gd(loss, params, learning_rate=eta, rho=rho, epsilon=eps)
     elif(gd == lasagne.updates.momentum):
-        updates = gd(loss, params, learning_rate=.01)
+        print("Using {} for updates with learning rate: {}, momentum: {}".format(gd.__name__, eta, mom))
+        updates = gd(loss, params, learning_rate=eta, momentum=mom)
 
     #monitoring progress during training
     testPrediction = lasagne.layers.get_output(net['out'], deterministic=True)
@@ -149,17 +144,18 @@ def main(mbs=128, gd=lasagne.updates.momentum, epochs=60):
         print("Epoch {} of {} took {:.3f}s".format(e + 1, epochs, time.time() - startTime))
         print("  training loss:\t\t{:.6f}".format(trainErr / trainBatches))
 
-    print("  training accuracy:\t\t{:.2f} %".format(trainAcc / trainBatches * 100))
+    print("Training accuracy:\t\t{:.2f} %".format(trainAcc / trainBatches * 100))
     #run on test set
-    testErr = 0
-    testAcc = 0
-    testBatches = 0
+
+    testErr, testAcc, testBatches = 0, 0, 0
+
     for b in minibatches(X_test, y_test, mbs, shuffle=False):
         batchInputs, batchTargets = b
         err, acc = test(batchInputs, batchTargets)
         testErr += err
         testAcc += acc
         testBatches += 1
+
     print("Final results:")
     print("  test loss:\t\t\t{:.6f}".format(testErr / testBatches))
     print("  test accuracy:\t\t{:.2f} %".format(testAcc / testBatches * 100))
