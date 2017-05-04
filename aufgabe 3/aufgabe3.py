@@ -86,7 +86,7 @@ def minibatches(inputs, targets, mbs, shuffle):
         yield inputs[batchIdx], targets[batchIdx]
 
 
-def main(mbs=128, gd=lasagne.updates.rmsprop, epochs=60, eta=.01, eps=.95, rho=1e-6, mom=.9):
+def main(mbs=128, gd=lasagne.updates.rmsprop, epochs=60, eta=.05, eps=.95, rho=1e-6, mom=.9):
 
     #Loading MNIST, taken from Theano example mnist.py
     print('Loading MNIST dataset...')
