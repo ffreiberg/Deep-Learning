@@ -57,14 +57,10 @@ def loadMnist():
     X_test = load_mnist_images('t10k-images-idx3-ubyte.gz')
     y_test = load_mnist_labels('t10k-labels-idx1-ubyte.gz')
 
-    # We reserve the last 10000 training examples for validation.
-    X_train, X_val = X_train[:-10000], X_train[-10000:]
-    y_train, y_val = y_train[:-10000], y_train[-10000:]
-
 
     # We just return all the arrays in order, as expected in main().
     # (It doesn't matter how we do this as long as we can read them again.)
-    return X_train, y_train, X_val, y_val, X_test, y_test
+    return X_train, y_train, X_test, y_test
 
 def cnn(inputs=None, activation=lasagne.nonlinearities.rectify, w_init=lasagne.init.GlorotUniform()):
 
@@ -101,7 +97,7 @@ def main(mbs=128, gd=lasagne.updates.adadelta, epochs=60):
 
     #Loading MNIST, taken from Theano example mnist.py
     print('Loading MNIST dataset...')
-    X_train, y_train, X_val, y_val, X_test, y_test = loadMnist()
+    X_train, y_train, X_test, y_test = loadMnist()
     #print('Loading MNIST finished!')
 
     inputs = T.tensor4('inputs')
@@ -115,7 +111,6 @@ def main(mbs=128, gd=lasagne.updates.adadelta, epochs=60):
     #prediction of network
     prediction = lasagne.layers.get_output(net['out'])
     loss = lasagne.objectives.squared_error(targets, prediction)
-#    loss = (targets - prediction)**2
     loss = loss.mean()
 
     #updates
@@ -149,7 +144,7 @@ def main(mbs=128, gd=lasagne.updates.adadelta, epochs=60):
     testErr = 0
     testAcc = 0
     testBatches = 0
-    for b in minibatches(X_test, y_test, 500, shuffle=False):
+    for b in minibatches(X_test, y_test, mbs, shuffle=False):
         batchInputs, batchTargets = b
         err, acc = test(batchInputs, batchTargets)
         testErr += err
