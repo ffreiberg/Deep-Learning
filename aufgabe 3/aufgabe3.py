@@ -35,7 +35,6 @@ def loadMnist():
         # The inputs come as bytes, we convert them to float32 in range [0,1].
         # (Actually to range [0, 255/256], for compatibility to the version
         # provided at http://deeplearning.net/data/mnist/mnist.pkl.gz.)
-        print(data.shape)
         return data / np.float32(256)
 
     def load_mnist_labels(filename):
@@ -45,10 +44,8 @@ def loadMnist():
         with gzip.open(filename, 'rb') as f:
             data = np.frombuffer(f.read(), np.uint8, offset=8)
         # The labels are vectors of integers now, that's exactly what we want.
-        print(data.shape)
         labels = np.zeros((len(data), 10))
         labels[np.arange(len(data)), data] = 1
-        print(labels.shape)
         return labels
 
     # We can now download and read the training and test set images and labels.
@@ -94,7 +91,7 @@ def minibatches(inputs, targets, mbs, shuffle):
         yield inputs[batchIdx], targets[batchIdx]
 
 
-def main(mbs=128, gd=lasagne.updates.nesterov_momentum, epochs=60):
+def main(mbs=128, gd=lasagne.updates.momentum, epochs=60):
 
     #Loading MNIST, taken from Theano example mnist.py
     print('Loading MNIST dataset...')
@@ -114,9 +111,17 @@ def main(mbs=128, gd=lasagne.updates.nesterov_momentum, epochs=60):
     loss = lasagne.objectives.squared_error(targets, prediction)
     loss = loss.mean()
 
+    trainAcc = T.mean(T.eq(T.argmax(prediction, axis=1), T.argmax(targets, axis=1)), dtype=theano.config.floatX)
+
     #updates
     params = lasagne.layers.get_all_params(net['out'], trainable=True)
-    updates = gd(loss, params, learning_rate=0.01, momentum=.9)
+
+    if(gd == lasagne.updates.adadelta):
+        updates = gd(loss, params, learning_rate=.01)
+    elif(gd == lasagne.updates.rmsprop):
+        updates = gd(loss, params, learning_rate=.01)
+    elif(gd == lasagne.updates.momentum):
+        updates = gd(loss, params, learning_rate=.01)
 
     #monitoring progress during training
     testPrediction = lasagne.layers.get_output(net['out'], deterministic=True)
@@ -125,23 +130,27 @@ def main(mbs=128, gd=lasagne.updates.nesterov_momentum, epochs=60):
 
     testAcc = T.mean(T.eq(T.argmax(testPrediction, axis=1), T.argmax(targets, axis=1)), dtype=theano.config.floatX)
 
-    fit = theano.function([inputs, targets], loss, updates=updates, allow_input_downcast=True)
+    fit = theano.function([inputs, targets], [loss, trainAcc], updates=updates, allow_input_downcast=True)
     test = theano.function([inputs, targets], [testLoss, testAcc], allow_input_downcast=True)
 
     print('Starting training...')
     for e in range(epochs):
 
-        trainErr, trainBatches = 0, 0
+        trainErr, trainBatches, trainAcc = 0, 0, 0
         startTime = time.time()
 
         for b in minibatches(X_train, y_train, mbs, True):
             batchInputs, batchTargets = b
-            trainErr += fit(batchInputs, batchTargets)
+            err, acc = fit(batchInputs, batchTargets)
+            trainErr += err
+            trainAcc += acc
             trainBatches += 1
 
         print("Epoch {} of {} took {:.3f}s".format(e + 1, epochs, time.time() - startTime))
         print("  training loss:\t\t{:.6f}".format(trainErr / trainBatches))
 
+    print("  training accuracy:\t\t{:.2f} %".format(trainAcc / trainBatches * 100))
+    #run on test set
     testErr = 0
     testAcc = 0
     testBatches = 0
