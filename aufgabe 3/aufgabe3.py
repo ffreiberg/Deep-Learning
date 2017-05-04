@@ -1,6 +1,7 @@
 import sys
 import os
 import time
+import logging
 
 import numpy as np
 import theano
@@ -16,7 +17,8 @@ def loadMnist():
         from urllib.request import urlretrieve
 
     def download(filename, source='http://yann.lecun.com/exdb/mnist/'):
-        print("Downloading %s" % filename)
+#        print("Downloading %s" % filename)
+        logger.info("Downloading %s" % filename)
         urlretrieve(source + filename, filename)
 
     import gzip
@@ -88,8 +90,17 @@ def minibatches(inputs, targets, mbs, shuffle):
 
 def main(mbs=128, gd=lasagne.updates.rmsprop, epochs=60, eta=.05, eps=.95, rho=1e-6, mom=.9):
 
+    if (gd == lasagne.updates.adadelta or gd == lasagne.updates.rmsprop):
+        log = logging.FileHandler('cnn_mbs={}_gd={}_epochs={}_eta={}_eps={}_rho={}.log'.format(
+            mbs, gd.__name__, epochs, eta, eps, rho))
+    elif (gd == lasagne.updates.momentum):
+        log = logging.FileHandler('cnn_mbs={}_gd={}_epochs={}_eta={}_mom={}.log'.format(
+            mbs, gd.__name__, epochs, eta, mom))
+    logger.addHandler(log)
+
     #Loading MNIST, taken from Theano example mnist.py
-    print('Loading MNIST dataset...')
+#    print('Loading MNIST dataset...')
+    logger.info('Loading MNIST dataset...')
     X_train, y_train, X_test, y_test = loadMnist()
     #print('Loading MNIST finished!')
 
@@ -97,7 +108,8 @@ def main(mbs=128, gd=lasagne.updates.rmsprop, epochs=60, eta=.05, eps=.95, rho=1
     targets = T.matrix('targets')
 
     #Building up cnn
-    print('Creating network...')
+#    print('Creating network...')
+    logger.info('Creating network...')
     net = cnn(inputs)
     #print('Creating network finished!')
 
@@ -112,10 +124,12 @@ def main(mbs=128, gd=lasagne.updates.rmsprop, epochs=60, eta=.05, eps=.95, rho=1
     params = lasagne.layers.get_all_params(net['out'], trainable=True)
 
     if(gd == lasagne.updates.adadelta or gd == lasagne.updates.rmsprop):
-        print("Using {} for updates with learning rate: {}, epsilon: {}, rho: {}".format(gd.__name__, eta, eps, rho))
+#        print("Using {} for updates with learning rate: {}, epsilon: {}, rho: {}".format(gd.__name__, eta, eps, rho))
+        logger.info("Using {} for updates with learning rate: {}, epsilon: {}, rho: {}".format(gd.__name__, eta, eps, rho))
         updates = gd(loss, params, learning_rate=eta, rho=rho, epsilon=eps)
     elif(gd == lasagne.updates.momentum):
-        print("Using {} for updates with learning rate: {}, momentum: {}".format(gd.__name__, eta, mom))
+#        print("Using {} for updates with learning rate: {}, momentum: {}".format(gd.__name__, eta, mom))
+        logger.info("Using {} for updates with learning rate: {}, momentum: {}".format(gd.__name__, eta, mom))
         updates = gd(loss, params, learning_rate=eta, momentum=mom)
 
     #monitoring progress during training
@@ -128,7 +142,8 @@ def main(mbs=128, gd=lasagne.updates.rmsprop, epochs=60, eta=.05, eps=.95, rho=1
     fit = theano.function([inputs, targets], [loss, trainAcc], updates=updates, allow_input_downcast=True)
     test = theano.function([inputs, targets], [testLoss, testAcc], allow_input_downcast=True)
 
-    print('Starting training...')
+#    print('Starting training...')
+    logger.info('Starting training...')
     for e in range(epochs):
 
         trainErr, trainBatches, trainAcc = 0, 0, 0
@@ -141,10 +156,13 @@ def main(mbs=128, gd=lasagne.updates.rmsprop, epochs=60, eta=.05, eps=.95, rho=1
             trainAcc += acc
             trainBatches += 1
 
-        print("Epoch {} of {} took {:.3f}s".format(e + 1, epochs, time.time() - startTime))
-        print("  training loss:\t\t{:.6f}".format(trainErr / trainBatches))
+#        print("Epoch {} of {} took {:.3f}s".format(e + 1, epochs, time.time() - startTime))
+#        print("  training loss:\t\t{:.6f}".format(trainErr / trainBatches))
+        logger.info("Epoch {} of {} took {:.3f}s".format(e + 1, epochs, time.time() - startTime))
+        logger.info("  training loss:\t\t{:.6f}".format(trainErr / trainBatches))
 
-    print("Training accuracy:\t\t{:.2f} %".format(trainAcc / trainBatches * 100))
+#    print("Training accuracy:\t\t{:.2f} %".format(trainAcc / trainBatches * 100))
+    logger.info("Training accuracy:\t\t{:.2f} %".format(trainAcc / trainBatches * 100))
     #run on test set
 
     testErr, testAcc, testBatches = 0, 0, 0
@@ -156,10 +174,17 @@ def main(mbs=128, gd=lasagne.updates.rmsprop, epochs=60, eta=.05, eps=.95, rho=1
         testAcc += acc
         testBatches += 1
 
-    print("Final results:")
-    print("  test loss:\t\t\t{:.6f}".format(testErr / testBatches))
-    print("  test accuracy:\t\t{:.2f} %".format(testAcc / testBatches * 100))
-
+#    print("Final results:")
+#    print("  test loss:\t\t\t{:.6f}".format(testErr / testBatches))
+#    print("  test accuracy:\t\t{:.2f} %".format(testAcc / testBatches * 100))
+    logger.info("Final results:")
+    logger.info("  test loss:\t\t\t{:.6f}".format(testErr / testBatches))
+    logger.info("  test accuracy:\t\t{:.2f} %".format(testAcc / testBatches * 100))
 
 if __name__ == '__main__':
+
+    logger = logging.getLogger('cnn')
+    logger.setLevel(logging.INFO)
+    logging.getLogger().addHandler(logging.StreamHandler())
+
     main()
