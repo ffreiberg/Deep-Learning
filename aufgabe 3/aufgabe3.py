@@ -78,6 +78,7 @@ def cnn(inputs=None, activation=lasagne.nonlinearities.rectify, w_init=lasagne.i
 #    net['pool2'] = lasagne.layers.MaxPool2DLayer(net['conv2'], pool_size=(2,2))
 
     net['out']      = lasagne.layers.DenseLayer(    net['pool2'], num_units=10, nonlinearity=lasagne.nonlinearities.sigmoid)
+#    net['out']      = lasagne.layers.DenseLayer(    net['pool2'], num_units=10, nonlinearity=lasagne.nonlinearities.softmax)
 
     return net
 
@@ -93,7 +94,7 @@ def minibatches(inputs, targets, mbs, shuffle):
         yield inputs[batchIdx], targets[batchIdx]
 
 
-def main(mbs=128, gd=lasagne.updates.adadelta, epochs=60):
+def main(mbs=128, gd=lasagne.updates.nesterov_momentum, epochs=60):
 
     #Loading MNIST, taken from Theano example mnist.py
     print('Loading MNIST dataset...')
@@ -115,18 +116,18 @@ def main(mbs=128, gd=lasagne.updates.adadelta, epochs=60):
 
     #updates
     params = lasagne.layers.get_all_params(net['out'], trainable=True)
-    updates = gd(loss, params, learning_rate=0.01)
+    updates = gd(loss, params, learning_rate=0.01, momentum=.9)
 
     #monitoring progress during training
     testPrediction = lasagne.layers.get_output(net['out'], deterministic=True)
     testLoss = lasagne.objectives.squared_error(targets, testPrediction)
     testLoss = testLoss.mean()
 
-    testAcc = T.mean(T.eq(T.argmax(testPrediction, axis=1), targets), dtype=theano.config.floatX)
+    testAcc = T.mean(T.eq(T.argmax(testPrediction, axis=1), T.argmax(targets, axis=1)), dtype=theano.config.floatX)
 
     fit = theano.function([inputs, targets], loss, updates=updates, allow_input_downcast=True)
     test = theano.function([inputs, targets], [testLoss, testAcc], allow_input_downcast=True)
-    '''
+
     print('Starting training...')
     for e in range(epochs):
 
@@ -140,7 +141,7 @@ def main(mbs=128, gd=lasagne.updates.adadelta, epochs=60):
 
         print("Epoch {} of {} took {:.3f}s".format(e + 1, epochs, time.time() - startTime))
         print("  training loss:\t\t{:.6f}".format(trainErr / trainBatches))
-    '''
+
     testErr = 0
     testAcc = 0
     testBatches = 0
