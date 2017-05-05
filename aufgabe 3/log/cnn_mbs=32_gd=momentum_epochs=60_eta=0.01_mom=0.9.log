@@ -1,0 +1,128 @@
+Loading MNIST dataset...
+Creating network...
+Using momentum for updates with learning rate: 0.01, momentum: 0.9
+Starting training...
+Epoch 1 of 60 took 2.736s
+  training loss:		0.046375
+Epoch 2 of 60 took 2.682s
+  training loss:		0.016018
+Epoch 3 of 60 took 2.685s
+  training loss:		0.011671
+Epoch 4 of 60 took 2.679s
+  training loss:		0.009517
+Epoch 5 of 60 took 2.685s
+  training loss:		0.008187
+Epoch 6 of 60 took 2.675s
+  training loss:		0.007289
+Epoch 7 of 60 took 2.680s
+  training loss:		0.006682
+Epoch 8 of 60 took 2.684s
+  training loss:		0.006193
+Epoch 9 of 60 took 2.685s
+  training loss:		0.005821
+Epoch 10 of 60 took 2.686s
+  training loss:		0.005500
+Epoch 11 of 60 took 2.689s
+  training loss:		0.005207
+Epoch 12 of 60 took 2.685s
+  training loss:		0.005000
+Epoch 13 of 60 took 2.687s
+  training loss:		0.004792
+Epoch 14 of 60 took 2.685s
+  training loss:		0.004622
+Epoch 15 of 60 took 2.679s
+  training loss:		0.004444
+Epoch 16 of 60 took 2.679s
+  training loss:		0.004322
+Epoch 17 of 60 took 2.680s
+  training loss:		0.004164
+Epoch 18 of 60 took 2.684s
+  training loss:		0.004048
+Epoch 19 of 60 took 2.687s
+  training loss:		0.003932
+Epoch 20 of 60 took 2.688s
+  training loss:		0.003820
+Epoch 21 of 60 took 2.685s
+  training loss:		0.003736
+Epoch 22 of 60 took 2.686s
+  training loss:		0.003650
+Epoch 23 of 60 took 2.686s
+  training loss:		0.003542
+Epoch 24 of 60 took 2.687s
+  training loss:		0.003487
+Epoch 25 of 60 took 2.686s
+  training loss:		0.003403
+Epoch 26 of 60 took 2.685s
+  training loss:		0.003349
+Epoch 27 of 60 took 2.678s
+  training loss:		0.003268
+Epoch 28 of 60 took 2.678s
+  training loss:		0.003216
+Epoch 29 of 60 took 2.675s
+  training loss:		0.003165
+Epoch 30 of 60 took 2.678s
+  training loss:		0.003085
+Epoch 31 of 60 took 2.681s
+  training loss:		0.003014
+Epoch 32 of 60 took 2.686s
+  training loss:		0.002961
+Epoch 33 of 60 took 2.688s
+  training loss:		0.002924
+Epoch 34 of 60 took 2.688s
+  training loss:		0.002865
+Epoch 35 of 60 took 2.685s
+  training loss:		0.002816
+Epoch 36 of 60 took 2.687s
+  training loss:		0.002774
+Epoch 37 of 60 took 2.687s
+  training loss:		0.002741
+Epoch 38 of 60 took 2.688s
+  training loss:		0.002699
+Epoch 39 of 60 took 2.684s
+  training loss:		0.002666
+Epoch 40 of 60 took 2.688s
+  training loss:		0.002612
+Epoch 41 of 60 took 2.689s
+  training loss:		0.002537
+Epoch 42 of 60 took 2.686s
+  training loss:		0.002529
+Epoch 43 of 60 took 2.687s
+  training loss:		0.002493
+Epoch 44 of 60 took 2.689s
+  training loss:		0.002448
+Epoch 45 of 60 took 2.685s
+  training loss:		0.002431
+Epoch 46 of 60 took 2.687s
+  training loss:		0.002396
+Epoch 47 of 60 took 2.685s
+  training loss:		0.002354
+Epoch 48 of 60 took 2.689s
+  training loss:		0.002331
+Epoch 49 of 60 took 2.686s
+  training loss:		0.002300
+Epoch 50 of 60 took 2.690s
+  training loss:		0.002266
+Epoch 51 of 60 took 2.688s
+  training loss:		0.002237
+Epoch 52 of 60 took 2.687s
+  training loss:		0.002212
+Epoch 53 of 60 took 2.688s
+  training loss:		0.002196
+Epoch 54 of 60 took 2.683s
+  training loss:		0.002185
+Epoch 55 of 60 took 2.689s
+  training loss:		0.002151
+Epoch 56 of 60 took 2.683s
+  training loss:		0.002110
+Epoch 57 of 60 took 2.690s
+  training loss:		0.002098
+Epoch 58 of 60 took 2.676s
+  training loss:		0.002086
+Epoch 59 of 60 took 2.677s
+  training loss:		0.002056
+Epoch 60 of 60 took 2.696s
+  training loss:		0.002036
+Training accuracy:		99.06 %
+Final results:
+  test loss:			0.002696
+  test accuracy:		98.91 %
