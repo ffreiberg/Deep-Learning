@@ -88,8 +88,9 @@ def minibatches(inputs, targets, mbs, shuffle):
         yield inputs[batchIdx], targets[batchIdx]
 
 
-def main(mbs=16, gd=lasagne.updates.momentum, epochs=60, eta=.5, eps=.95, rho=1e-6, mom=.9):
+def main(mbs=16, gd=lasagne.updates.momentum, epochs=60, eta=.1, eps=.95, rho=1e-6, mom=.75):
 
+    '''
     if (gd == lasagne.updates.adadelta or gd == lasagne.updates.rmsprop):
         log = logging.FileHandler('cnn_mbs={}_gd={}_epochs={}_eta={}_eps={}_rho={}.log'.format(
             mbs, gd.__name__, epochs, eta, eps, rho))
@@ -97,6 +98,7 @@ def main(mbs=16, gd=lasagne.updates.momentum, epochs=60, eta=.5, eps=.95, rho=1e
         log = logging.FileHandler('cnn_mbs={}_gd={}_epochs={}_eta={}_mom={}.log'.format(
             mbs, gd.__name__, epochs, eta, mom))
     logger.addHandler(log)
+    '''
 
     #Loading MNIST, taken from Theano example mnist.py
 #    print('Loading MNIST dataset...')
