@@ -1,4 +1,8 @@
 import numpy as np
+import theano
+import theano.tensor as T
+
+import lasagne
 
 chars = 'BTSXPVE'
 
@@ -75,30 +79,19 @@ def get_n_examples(n, minLength=10):
     return examples
 
 
-emb_chars = "TP"
+def rnn(num_inputs):
+    net = {}
+
+    net['input'] = lasagne.layers.InputLayer((None, None, num_inputs))
+
+    net['lstm1'] = lasagne.layers.LSTMLayer(net['input'],)
+
+    pass
 
 
-def get_one_embedded_example(minLength=10):
-    i, o = get_one_example(minLength)
-    emb_char = emb_chars[np.random.randint(0, len(emb_chars))]
-    new_in = get_char_one_hot(('B',))
-    new_in += get_char_one_hot((emb_char,))
-    new_out = get_char_one_hot(emb_chars)
-    new_out += get_char_one_hot('B', )
-    new_in += i
-    new_out += o
-    new_in += get_char_one_hot(('E',))
-    new_in += get_char_one_hot((emb_char,))
-    new_out += get_char_one_hot((emb_char,))
-    new_out += get_char_one_hot(('E',))
-    return new_in, new_out
+def main():
 
-
-def get_n_embedded_examples(n, minLength=10):
-    examples = []
-    for i in range(n):
-        examples.append(get_one_embedded_example(minLength))
-    return examples
+    pass
 
 if __name__ == '__main__':
     x = get_n_examples(1000, 5)
