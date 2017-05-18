@@ -89,14 +89,14 @@ def rnn(vocab_len, inputs=None):
 
     net = {}
 
-    net['input'] = lasagne.layers.InputLayer((None, None, vocab_len), input_var=inputs)
+    net['input'] = lasagne.layers.InputLayer((None, 10, vocab_len), input_var=inputs)
 
-    net['lstm1'] = lasagne.layers.LSTMLayer(net['input'], num_units=10, nonlinearity=lasagne.nonlinearities.tanh)
+    net['lstm1'] = lasagne.layers.LSTMLayer(net['input'], num_units=7, nonlinearity=lasagne.nonlinearities.tanh)
 
     #net['rshp'] = lasagne.layers.ReshapeLayer(net['lstm1'], (-1, 1280))
-    net['nin'] = lasagne.layers.NINLayer(net['lstm1'], num_units=1280, W=lasagne.init.GlorotUniform())
+    net['out'] = lasagne.layers.NINLayer(net['lstm1'], num_units=10, W=lasagne.init.GlorotUniform())
 
-    net['out'] = lasagne.layers.DenseLayer(net['nin'], num_units=vocab_len, nonlinearity=lasagne.nonlinearities.tanh, W=lasagne.init.GlorotUniform())
+#    net['out'] = lasagne.layers.DenseLayer(net['nin'], num_units=vocab_len, nonlinearity=lasagne.nonlinearities.tanh, W=lasagne.init.GlorotUniform())
 
     return net
 
@@ -119,7 +119,7 @@ def main():
     num_samples = 10000#0
     len_seq = 10
     vocab_len = 7
-    epochs = 20
+    epochs = 100
     mbs = 128
 
     logger.info('Generating {} sequences of length {}...'.format(num_samples, len_seq))
@@ -136,12 +136,13 @@ def main():
 
     l_in = lasagne.layers.get_output_shape(net['input'], (128, 10, 7))
     l_lstm1 = lasagne.layers.get_output_shape(net['lstm1'], l_in)
-    l_rshp = lasagne.layers.get_output_shape(net['rshp'], l_lstm1)
-    l_out = lasagne.layers.get_output_shape(net['out'], l_rshp)
+#    l_rshp = lasagne.layers.get_output_shape(net['rshp'], l_lstm1)
+ #   l_out = lasagne.layers.get_output_shape(net['out'], l_rshp)
     print('l_in:\t\t', l_in, '\n',
           'l_lstm1:\t\t', l_lstm1, '\n',
-          'l_rshp:\t\t', l_rshp, '\n',
-          'l_out:\t\t', l_out, '\n')
+#          'l_rshp:\t\t', l_rshp, '\n',
+#          'l_out:\t\t', l_out, '\n'
+          )
 
     #exit()
 
@@ -201,7 +202,7 @@ def main():
         batchInputs, batchTargets = b
         t = xxx(batchInputs)
         print(batchInputs[-1], '\n')
-        print(t.shape, '\n', np.round(t), '\n')
+        print(t.shape, '\n', np.round(t[0]), '\n')
         print(batchTargets[-1])
         err, acc = test(batchInputs, batchTargets)
         testErr += err
