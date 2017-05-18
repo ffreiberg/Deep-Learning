@@ -151,7 +151,7 @@ def main():
     loss = lasagne.objectives.squared_error(targets, prediction)
     loss = loss.mean()
 
-    #    trainAcc = T.mean(T.eq(T.argmax(prediction, axis=1), T.argmax(targets, axis=1)), dtype=theano.config.floatX)
+    trainAcc = T.mean(T.eq(T.argmax(prediction, axis=1), T.argmax(targets, axis=1)), dtype=theano.config.floatX)
 
     params = lasagne.layers.get_all_params(net['out'], trainable=True)
     #updates = lasagne.updates.adam(loss, params, learning_rate=.001)
@@ -160,12 +160,12 @@ def main():
     testPrediction = lasagne.layers.get_output(net['out'], deterministic=True)
     testLoss = lasagne.objectives.squared_error(targets, testPrediction)
     testLoss = testLoss.mean()
-    #    testAcc = T.mean(T.eq(T.argmax(testPrediction, axis=1), T.argmax(targets, axis=1)), dtype=theano.config.floatX)
+    testAcc = T.mean(T.eq(T.argmax(testPrediction, axis=1), T.argmax(targets, axis=1)), dtype=theano.config.floatX)
 
-    #fit = theano.function([inputs, targets], [loss, trainAcc], updates=updates)
-    fit = theano.function([inputs, targets], loss, updates=updates, allow_input_downcast=True)
-    #test = theano.function([inputs, targets], [testLoss, testAcc], allow_input_downcast=True)
-    test = theano.function([inputs, targets], testLoss, allow_input_downcast=True)
+    fit = theano.function([inputs, targets], [loss, trainAcc], updates=updates)
+    #fit = theano.function([inputs, targets], loss, updates=updates, allow_input_downcast=True)
+    test = theano.function([inputs, targets], [testLoss, testAcc], allow_input_downcast=True)
+    #test = theano.function([inputs, targets], testLoss, allow_input_downcast=True)
 
     xxx = theano.function([inputs], testPrediction, allow_input_downcast=True)
 
@@ -177,23 +177,23 @@ def main():
         for b in minibatches(X_train, y_train, mbs, True):
             batchInputs, batchTargets = b
             #print(batchInputs.shape, batchTargets.shape)
-            err = fit(batchInputs, batchTargets)
+            err, acc = fit(batchInputs, batchTargets)
             trainErr += err
-            #trainAcc += acc
+            trainAcc += acc
             trainBatches += 1
 
         logger.info("Epoch {} of {} took {:.3f}s".format(e + 1, epochs, time.time() - startTime))
         logger.info("  training loss:\t\t{:.6f}".format(trainErr / trainBatches))
 
-        #logger.info("Training accuracy:\t\t{:.2f} %".format(trainAcc / trainBatches * 100))
+        logger.info("Training accuracy:\t\t{:.2f} %".format(trainAcc / trainBatches * 100))
 
         val_err, val_batches, val_acc = 0, 0, 0
 
         for b in minibatches(X_val, y_val, mbs, shuffle=False):
             batchInputs, batchTargets = b
-            acc = test(batchInputs, batchTargets)
+            err, acc = test(batchInputs, batchTargets)
             # val accuracy
-            #val_err += err
+            val_err += err
             val_acc += acc
             val_batches += 1
 
@@ -201,19 +201,18 @@ def main():
 
     for b in minibatches(X_test, y_test, mbs, shuffle=False):
         batchInputs, batchTargets = b
-        t = xxx(batchInputs)
-        print(batchInputs[-1], '\n')
-        print(t.shape, '\n', np.round(t[0]), '\n')
-        print(batchTargets[-1])
+        #t = xxx(batchInputs)
+        #print(batchInputs[-1], '\n')
+        #print(t.shape, '\n', np.round(t[0]), '\n')
+        #print(batchTargets[-1])
         err, acc = test(batchInputs, batchTargets)
         testErr += err
         testAcc += acc
         testBatches += 1
 
-
     logger.info("Final results:")
-    #logger.info("  test loss:\t\t\t{:.6f}".format(testErr / testBatches))
-    #logger.info("  test accuracy:\t\t{:.2f} %".format(testAcc / testBatches * 100))
+    logger.info("  test loss:\t\t\t{:.6f}".format(testErr / testBatches))
+    logger.info("  test accuracy:\t\t{:.2f} %".format(testAcc / testBatches * 100))
 
 
 if __name__ == '__main__':
