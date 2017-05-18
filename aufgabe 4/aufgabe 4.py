@@ -116,7 +116,7 @@ def minibatches(inputs, targets, mbs, shuffle):
 
 def main():
 
-    num_samples = 10000#0
+    num_samples = 100000
     len_seq = 10
     vocab_len = 7
     epochs = 100
@@ -154,7 +154,7 @@ def main():
     #    trainAcc = T.mean(T.eq(T.argmax(prediction, axis=1), T.argmax(targets, axis=1)), dtype=theano.config.floatX)
 
     params = lasagne.layers.get_all_params(net['out'], trainable=True)
-    updates = lasagne.updates.adam(loss, params, learning_rate=.0001)
+    updates = lasagne.updates.adam(loss, params, learning_rate=.001)
 
     testPrediction = lasagne.layers.get_output(net['out'], deterministic=True)
     testLoss = lasagne.objectives.squared_error(targets, testPrediction)
