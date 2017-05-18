@@ -151,7 +151,7 @@ def main():
     loss = lasagne.objectives.squared_error(targets, prediction)
     loss = loss.mean()
 
-    trainAcc = T.mean(T.eq(T.argmax(prediction, axis=1), T.argmax(targets, axis=1)), dtype=theano.config.floatX)
+    trainAcc = T.mean(T.eq(T.round(prediction), T.round(targets)), dtype=theano.config.floatX)
 
     params = lasagne.layers.get_all_params(net['out'], trainable=True)
     #updates = lasagne.updates.adam(loss, params, learning_rate=.001)
