@@ -6,6 +6,7 @@ import theano
 import theano.tensor as T
 
 import lasagne
+from numpy.distutils.system_info import lapack_src_info
 
 chars = 'BTSXPVE'
 
@@ -88,14 +89,13 @@ def rnn(vocab_len, inputs=None):
 
     net = {}
 
-    #num_inputs = länge der sequenz
     net['input'] = lasagne.layers.InputLayer((None, None, vocab_len), input_var=inputs)
 
-    net['lstm1'] = lasagne.layers.LSTMLayer(net['input'], num_units=10, nonlinearity=lasagne.nonlinearities.tanh)
+    net['lstm1'] = lasagne.layers.LSTMLayer(net['input'], num_units=10, nonlinearity=lasagne.nonlinearities.tanh, only_return_final=True)
 
-    net['rshp'] = lasagne.layers.ReshapeLayer(net['lstm1'], (-1, vocab_len))
+    #net['rshp'] = lasagne.layers.ReshapeLayer(net['lstm1'], (-1, vocab_len))
 
-    net['out'] = lasagne.layers.DenseLayer(net['rshp'], num_units=vocab_len, nonlinearity=lasagne.nonlinearities.tanh)
+    net['out'] = lasagne.layers.DenseLayer(net['lstm1'], num_units=vocab_len, nonlinearity=lasagne.nonlinearities.tanh, W=lasagne.init.GlorotUniform())
 
     return net
 
@@ -160,6 +160,7 @@ def main():
 
         for b in minibatches(X_train, y_train, mbs, True):
             batchInputs, batchTargets = b
+            print(batchInputs.shape, batchTargets.shape)
             err = fit(batchInputs, batchTargets)
             trainErr += err
             #trainAcc += acc
@@ -171,7 +172,7 @@ def main():
 
         val_err, val_batches, val_acc = 0, 0, 0
 
-        for batch in minibatches(X_val, y_val, mbs, shuffle=False):
+        for b in minibatches(X_val, y_val, mbs, shuffle=False):
             batchInputs, batchTargets = b
             err, acc = test(batchInputs, batchTargets)
             # val accuracy
@@ -200,4 +201,3 @@ if __name__ == '__main__':
     logging.getLogger().addHandler(logging.StreamHandler())
 
     main()
-
