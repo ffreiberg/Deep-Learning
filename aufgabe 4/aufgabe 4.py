@@ -93,9 +93,10 @@ def rnn(vocab_len, inputs=None):
 
     net['lstm1'] = lasagne.layers.LSTMLayer(net['input'], num_units=10, nonlinearity=lasagne.nonlinearities.tanh)
 
-    net['rshp'] = lasagne.layers.ReshapeLayer(net['lstm1'], (-1, 1280))
+    #net['rshp'] = lasagne.layers.ReshapeLayer(net['lstm1'], (-1, 1280))
+    net['nin'] = lasagne.layers.NINLayer(net['lstm1'], num_units=1280, W=lasagne.init.GlorotUniform())
 
-    net['out'] = lasagne.layers.DenseLayer(net['rshp'], num_units=vocab_len, nonlinearity=lasagne.nonlinearities.tanh, W=lasagne.init.GlorotUniform())
+    net['out'] = lasagne.layers.DenseLayer(net['nin'], num_units=vocab_len, nonlinearity=lasagne.nonlinearities.tanh, W=lasagne.init.GlorotUniform())
 
     return net
 
