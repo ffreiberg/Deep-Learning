@@ -116,7 +116,7 @@ def minibatches(inputs, targets, mbs, shuffle):
 
 def main():
 
-    num_samples = 100000
+    num_samples = 10000#0
     len_seq = 10
     vocab_len = 7
     epochs = 100
@@ -151,7 +151,7 @@ def main():
     loss = lasagne.objectives.squared_error(targets, prediction)
     loss = loss.mean()
 
-    trainAcc = T.mean(T.eq(T.round(prediction), T.round(targets)), dtype=theano.config.floatX)
+    trainAcc = T.mean(T.eq(T.argmax(prediction, axis=1), T.argmax(T.round(targets), axis=1)), dtype=theano.config.floatX)
 
     params = lasagne.layers.get_all_params(net['out'], trainable=True)
     #updates = lasagne.updates.adam(loss, params, learning_rate=.001)
@@ -160,9 +160,9 @@ def main():
     testPrediction = lasagne.layers.get_output(net['out'], deterministic=True)
     testLoss = lasagne.objectives.squared_error(targets, testPrediction)
     testLoss = testLoss.mean()
-    testAcc = T.mean(T.eq(T.argmax(testPrediction, axis=1), T.argmax(targets, axis=1)), dtype=theano.config.floatX)
+    testAcc = T.mean(T.eq(testPrediction, T.round(targets)), dtype=theano.config.floatX)
 
-    fit = theano.function([inputs, targets], [loss, trainAcc], updates=updates)
+    fit = theano.function([inputs, targets], [loss, trainAcc], updates=updates, allow_input_downcast=True)
     #fit = theano.function([inputs, targets], loss, updates=updates, allow_input_downcast=True)
     test = theano.function([inputs, targets], [testLoss, testAcc], allow_input_downcast=True)
     #test = theano.function([inputs, targets], testLoss, allow_input_downcast=True)
@@ -198,22 +198,28 @@ def main():
             val_batches += 1
 
     testErr, testAcc, testBatches = 0, 0, 0
+    xx = 0
 
     for b in minibatches(X_test, y_test, mbs, shuffle=False):
         batchInputs, batchTargets = b
-        #t = xxx(batchInputs)
+        t = xxx(batchInputs)
         #print(batchInputs[-1], '\n')
-        #print(t.shape, '\n', np.round(t[0]), '\n')
-        #print(batchTargets[-1])
+        #print(t.shape, '\n', np.round(t), '\n')
+        #print(batchTargets)
+        x = np.count_nonzero(np.count_nonzero(batchTargets == np.round(t), axis=1) == len_seq)
+        print(x)
         err, acc = test(batchInputs, batchTargets)
         testErr += err
         testAcc += acc
+        xx += x / (mbs * vocab_len)
+        print(xx)
+        #print(acc)
         testBatches += 1
 
     logger.info("Final results:")
     logger.info("  test loss:\t\t\t{:.6f}".format(testErr / testBatches))
     logger.info("  test accuracy:\t\t{:.2f} %".format(testAcc / testBatches * 100))
-
+    print(xx / testBatches * 100)
 
 if __name__ == '__main__':
 
