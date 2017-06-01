@@ -51,13 +51,11 @@ def generateSequences(len_seq=10):
             outchars.append(transitions[1])
             node = transitions[0][i]
         if len(inchars) == len_seq+1:
-            #inchars = np.array(inchars)
-            #outchars = np.array(outchars)
             return inchars, outchars
 
 
-def get_one_example(minLength):
-    inchars, outchars = generateSequences(minLength)
+def get_one_example(len_seq):
+    inchars, outchars = generateSequences(len_seq)
     inseq = []
     outseq = []
     for i, o in zip(inchars, outchars):
@@ -85,18 +83,15 @@ def get_n_examples(n, len_seq=10):
     return examples
 
 
-def rnn(vocab_len, inputs=None):
+def rnn(vocab_len, len_seq, inputs=None):
 
     net = {}
 
-    net['input'] = lasagne.layers.InputLayer((None, 10, vocab_len), input_var=inputs)
+    net['input'] = lasagne.layers.InputLayer((None, len_seq, vocab_len), input_var=inputs)
 
-    net['lstm1'] = lasagne.layers.LSTMLayer(net['input'], num_units=7, nonlinearity=lasagne.nonlinearities.tanh)
+    net['lstm1'] = lasagne.layers.LSTMLayer(net['input'], num_units=vocab_len, nonlinearity=lasagne.nonlinearities.tanh)
 
-    #net['rshp'] = lasagne.layers.ReshapeLayer(net['lstm1'], (-1, 1280))
-    net['out'] = lasagne.layers.NINLayer(net['lstm1'], num_units=10, W=lasagne.init.GlorotUniform())
-
-#    net['out'] = lasagne.layers.DenseLayer(net['nin'], num_units=vocab_len, nonlinearity=lasagne.nonlinearities.tanh, W=lasagne.init.GlorotUniform())
+    net['out'] = lasagne.layers.NINLayer(net['lstm1'], num_units=len_seq, W=lasagne.init.GlorotUniform())
 
     return net
 
@@ -114,112 +109,128 @@ def minibatches(inputs, targets, mbs, shuffle):
         yield inputs[batchIdx], targets[batchIdx]
 
 
+def calc_acc(pred, targets, mbs, len_seq, vocab_len):
+    rnd = np.round(pred)
+    sum_eq = np.sum(targets == rnd, axis=2)
+    sum_cols = np.sum(sum_eq, axis=1)
+    valid = np.count_nonzero(sum_cols == len_seq * vocab_len)
+    acc = valid / mbs
+    return acc
+
 def main():
 
-    num_samples = 10000#0
+    num_samples = 100000
     len_seq = 10
     vocab_len = 7
     epochs = 100
-    mbs = 128
+    _mbs = [16, 32, 64, 128, 256, 512]
+    _gd = [lasagne.updates.nesterov_momentum, lasagne.updates.rmsprop, lasagne.updates.adadelta]
+    _eta = [.5, .1, .01]
+    eps = .95
+    rho = 1e-6
+    mom = .75
 
-    logger.info('Generating {} sequences of length {}...'.format(num_samples, len_seq))
-    data = np.array(get_n_examples(num_samples, len_seq))
-    # data[sample, 0: data 1: label, seq, letter]
-    X_train, y_train, X_val, y_val, X_test, y_test = data[:int(num_samples * 0.8), 0, :, :], data[:int(num_samples * 0.8), 1, :, :], data[int(num_samples * 0.8):int(num_samples * 0.9), 0, :, :], \
-                                                     data[int(num_samples * 0.8):int(num_samples * 0.9), 1, :, :], data[int(num_samples * 0.9):, 0, :, :], data[int(num_samples * 0.9):, 1, :, :]
-    # print(X_train.shape, y_train.shape, X_val.shape, y_val.shape, X_test.shape, y_test.shape)
-    inputs = T.tensor3('input')
-    targets = T.tensor3('output')
+    for gd in _gd:
+        for mbs in _mbs:
+            for eta in _eta:
 
-    logger.info('Creating RNN...')
-    net = rnn(vocab_len, inputs)
+                if (gd == lasagne.updates.adadelta or gd == lasagne.updates.rmsprop):
+                    log = logging.FileHandler('rnn_mbs={}_gd={}_epochs={}_eta={}_eps={}_rho={}.log'.format(
+                        mbs, gd.__name__, epochs, eta, eps, rho))
+                elif (gd == lasagne.updates.nesterov_momentum):
+                    log = logging.FileHandler('rnn_mbs={}_gd={}_epochs={}_eta={}_mom={}.log'.format(
+                        mbs, gd.__name__, epochs, eta, mom))
+                logger.addHandler(log)
 
-    l_in = lasagne.layers.get_output_shape(net['input'], (128, 10, 7))
-    l_lstm1 = lasagne.layers.get_output_shape(net['lstm1'], l_in)
-#    l_rshp = lasagne.layers.get_output_shape(net['rshp'], l_lstm1)
- #   l_out = lasagne.layers.get_output_shape(net['out'], l_rshp)
-    print('l_in:\t\t', l_in, '\n',
-          'l_lstm1:\t\t', l_lstm1, '\n',
-#          'l_rshp:\t\t', l_rshp, '\n',
-#          'l_out:\t\t', l_out, '\n'
-          )
+                logger.info('Generating {} sequences of length {}...'.format(num_samples, len_seq))
+                data = np.array(get_n_examples(num_samples, len_seq))
+                # data[sample, 0: data 1: label, seq, letter]
+                X_train, y_train, X_val, y_val, X_test, y_test = data[:int(num_samples * 0.8), 0, :, :], data[:int(num_samples * 0.8), 1, :, :], data[int(num_samples * 0.8):int(num_samples * 0.9), 0, :, :], \
+                                                                 data[int(num_samples * 0.8):int(num_samples * 0.9), 1, :, :], data[int(num_samples * 0.9):, 0, :, :], data[int(num_samples * 0.9):, 1, :, :]
+                # print(X_train.shape, y_train.shape, X_val.shape, y_val.shape, X_test.shape, y_test.shape)
+                inputs = T.tensor3('input')
+                targets = T.tensor3('output')
 
-    #exit()
+                logger.info('Creating RNN...')
+                net = rnn(vocab_len, len_seq, inputs)
 
-    logger.info('Compiling Theano...')
-    prediction = lasagne.layers.get_output(net['out'])
-    loss = lasagne.objectives.squared_error(targets, prediction)
-    loss = loss.mean()
+                logger.info('Compiling Theano...')
+                prediction = lasagne.layers.get_output(net['out'])
+                loss = lasagne.objectives.squared_error(targets, prediction)
+                loss = loss.mean()
 
-    trainAcc = T.mean(T.eq(T.argmax(prediction, axis=1), T.argmax(T.round(targets), axis=1)), dtype=theano.config.floatX)
+                trainAcc = T.mean(T.eq(T.argmax(prediction, axis=1), T.argmax(T.round(targets), axis=1)), dtype=theano.config.floatX)
 
-    params = lasagne.layers.get_all_params(net['out'], trainable=True)
-    #updates = lasagne.updates.adam(loss, params, learning_rate=.001)
-    updates = lasagne.updates.nesterov_momentum(loss, params, learning_rate=.01)
+                params = lasagne.layers.get_all_params(net['out'], trainable=True)
+                #updates = lasagne.updates.adam(loss, params, learning_rate=.001)
 
-    testPrediction = lasagne.layers.get_output(net['out'], deterministic=True)
-    testLoss = lasagne.objectives.squared_error(targets, testPrediction)
-    testLoss = testLoss.mean()
-    testAcc = T.mean(T.eq(testPrediction, T.round(targets)), dtype=theano.config.floatX)
+                #updates = lasagne.updates.nesterov_momentum(loss, params, learning_rate=.01)
 
-    fit = theano.function([inputs, targets], [loss, trainAcc], updates=updates, allow_input_downcast=True)
-    #fit = theano.function([inputs, targets], loss, updates=updates, allow_input_downcast=True)
-    test = theano.function([inputs, targets], [testLoss, testAcc], allow_input_downcast=True)
-    #test = theano.function([inputs, targets], testLoss, allow_input_downcast=True)
+                if (gd == lasagne.updates.adadelta or gd == lasagne.updates.rmsprop):
+                    #        print("Using {} for updates with learning rate: {}, epsilon: {}, rho: {}".format(gd.__name__, eta, eps, rho))
+                    logger.info(
+                        "Using {} for updates with learning rate: {}, epsilon: {}, rho: {}".format(gd.__name__, eta,
+                                                                                                   eps, rho))
+                    updates = gd(loss, params, learning_rate=eta, rho=rho, epsilon=eps)
+                elif (gd == lasagne.updates.nesterov_momentum):
+                    #        print("Using {} for updates with learning rate: {}, momentum: {}".format(gd.__name__, eta, mom))
+                    logger.info(
+                        "Using {} for updates with learning rate: {}, momentum: {}".format(gd.__name__, eta, mom))
+                    updates = gd(loss, params, learning_rate=eta, momentum=mom)
 
-    xxx = theano.function([inputs], testPrediction, allow_input_downcast=True)
+                testPrediction = lasagne.layers.get_output(net['out'], deterministic=True)
+                testLoss = lasagne.objectives.squared_error(targets, testPrediction)
+                testLoss = testLoss.mean()
+                testAcc = T.mean(T.eq(testPrediction, T.round(targets)), dtype=theano.config.floatX)
 
-    logger.info('Starting training...')
-    for e in range(epochs):
-        trainErr, trainBatches, trainAcc = 0, 0, 0
-        startTime = time.time()
+                fit = theano.function([inputs, targets], [loss, prediction], updates=updates, allow_input_downcast=True)
+                #fit = theano.function([inputs, targets], loss, updates=updates, allow_input_downcast=True)
+                test = theano.function([inputs, targets], [testLoss, testPrediction], allow_input_downcast=True)
+                #test = theano.function([inputs, targets], testLoss, allow_input_downcast=True)
 
-        for b in minibatches(X_train, y_train, mbs, True):
-            batchInputs, batchTargets = b
-            #print(batchInputs.shape, batchTargets.shape)
-            err, acc = fit(batchInputs, batchTargets)
-            trainErr += err
-            trainAcc += acc
-            trainBatches += 1
+                logger.info('Starting training...')
+                for e in range(epochs):
+                    trainErr, trainBatches, trainAcc = 0, 0, 0
+                    startTime = time.time()
 
-        logger.info("Epoch {} of {} took {:.3f}s".format(e + 1, epochs, time.time() - startTime))
-        logger.info("  training loss:\t\t{:.6f}".format(trainErr / trainBatches))
+                    for b in minibatches(X_train, y_train, mbs, True):
+                        batchInputs, batchTargets = b
+                        #print(batchInputs.shape, batchTargets.shape)
+                        err, pred = fit(batchInputs, batchTargets)
+                        acc = calc_acc(pred, batchTargets, mbs, len_seq, vocab_len)
+                        trainErr += err
+                        trainAcc += acc
+                        trainBatches += 1
 
-        logger.info("Training accuracy:\t\t{:.2f} %".format(trainAcc / trainBatches * 100))
+                    val_err, val_batches, val_acc = 0, 0, 0
 
-        val_err, val_batches, val_acc = 0, 0, 0
+                    for b in minibatches(X_val, y_val, mbs, shuffle=False):
+                        batchInputs, batchTargets = b
+                        err, pred = test(batchInputs, batchTargets)
+                        # val accuracy
+                        acc = calc_acc(pred, batchTargets, mbs, len_seq, vocab_len)
+                        val_err += err
+                        val_acc += acc
+                        val_batches += 1
 
-        for b in minibatches(X_val, y_val, mbs, shuffle=False):
-            batchInputs, batchTargets = b
-            err, acc = test(batchInputs, batchTargets)
-            # val accuracy
-            val_err += err
-            val_acc += acc
-            val_batches += 1
+                    logger.info("Epoch {} of {} took {:.3f}s".format(e + 1, epochs, time.time() - startTime))
+                    logger.info("  training loss:\t\t{:.6f}".format(trainErr / trainBatches))
+                    logger.info("  validation loss:\t\t{:.6f}".format(val_err / val_batches))
+                    logger.info("  validation accuracy:\t\t{:.2f} %".format(val_acc / val_batches * 100))
 
-    testErr, testAcc, testBatches = 0, 0, 0
-    xx = 0
+                testErr, testAcc, testBatches = 0, 0, 0
 
-    for b in minibatches(X_test, y_test, mbs, shuffle=False):
-        batchInputs, batchTargets = b
-        t = xxx(batchInputs)
-        #print(batchInputs[-1], '\n')
-        #print(t.shape, '\n', np.round(t), '\n')
-        #print(batchTargets)
-        x = np.count_nonzero(np.count_nonzero(batchTargets == np.round(t), axis=1) == len_seq)
-        print(x)
-        err, acc = test(batchInputs, batchTargets)
-        testErr += err
-        testAcc += acc
-        xx += x / (mbs * vocab_len)
-        print(xx)
-        #print(acc)
-        testBatches += 1
+                for b in minibatches(X_test, y_test, mbs, shuffle=False):
+                    batchInputs, batchTargets = b
+                    err, pred = test(batchInputs, batchTargets)
+                    testErr += err
+                    acc = calc_acc(pred, batchTargets, mbs, len_seq, vocab_len)
+                    testAcc += acc
+                    testBatches += 1
 
-    logger.info("Final results:")
-    logger.info("  test loss:\t\t\t{:.6f}".format(testErr / testBatches))
-    logger.info("  test accuracy:\t\t{:.2f} %".format(testAcc / testBatches * 100))
-    print(xx / testBatches * 100)
+                logger.info("Final results:")
+                logger.info("  test loss:\t\t\t{:.6f}".format(testErr / testBatches))
+                logger.info("  test accuracy:\t\t{:.2f} %".format(testAcc / testBatches * 100))
 
 if __name__ == '__main__':
 
