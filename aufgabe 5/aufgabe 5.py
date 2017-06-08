@@ -18,11 +18,40 @@ def ctc(prob, seq):
     # which is just ℓ with blanks inserted between all letters, as well as at the beginning and end.
     L = 2 * len(seq) + 1    # length of sequence [9]
     T = prob.shape[1]       # timesteps [1, ..., 12]
+    blank = 0
 
     a = np.zeros((L, T))
     b = np.zeros((L, T))
 
+    a[0, 0] = prob[blank, 0]
+    a[1, 0] = prob[seq[0], 0]
 
+    c = np.sum(a[:, 0])
+    a[:, 0] /= c
+
+    forward = np.log(c)
+
+    for t in range(1, T):
+        start = max(0, L - 2 * (T - t))
+        end = min(2 * t + 2, L)
+        for s in range(start, L):
+            l = (s - 1) / 2
+
+            if(s % 2 == 0):
+                if(s == 0):
+                    a[s, t] = a[s, t - 1] * prob[blank, t]
+                else:
+                    a[s, t] = (a[s, t - 1] + a[s - 1, t - 1]) * prob[blank, t]
+            elif(s == 1 or seq[l] == seq[l - 1]):
+                a[s, t] = (a[s, t - 1] + a[s - 1, t - 1]) * prob[seq[l], t]
+            else:
+                a[s, t] = (a[s, t - 1] + a[s - 1, t - 1] + a[s-2, t - 1]) * prob[seq[l], t]
+
+        c = np.sum(a[start:end, t])
+        a[start:end, t] /= c
+        forward += np.log(c)
+
+        print(forward)
 
     pass
 
