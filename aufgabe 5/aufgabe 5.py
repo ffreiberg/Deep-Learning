@@ -11,6 +11,13 @@ https://www.cs.toronto.edu/~graves/preprint.pdf
 import numpy as np
 import matplotlib.pyplot as plt
 
+def logAdd(a,b):
+    return np.log(a) + np.log(1 + np.exp(np.log(b) - np.log(a)))
+    pass
+
+def logMul(a,b):
+    return np.log(a) + np.log(b)
+    pass
 
 def ctc(probs, seq, name):
 
@@ -34,7 +41,7 @@ def ctc(probs, seq, name):
     forward = np.log(c)
 
     for t in range(1, T):
-        start = max(0, L - 2 * (T - t))
+        start = max(0, L - 2 * (T - t) - 1)
         end = min(2 * t + 2, L)
         for s in range(start, L):
             l = (s - 1) / 2
@@ -42,12 +49,16 @@ def ctc(probs, seq, name):
             if(s % 2 == 0):
                 if(s == 0):
                     a[s, t] = a[s, t - 1] * probs[blank, t]
+                    #a[s, t] = logMul(a[s, t - 1], probs[blank, t])
                 else:
                     a[s, t] = (a[s, t - 1] + a[s - 1, t - 1]) * probs[blank, t]
+                    #a[s, t] = logMul((logAdd(a[s, t - 1], a[s - 1, t - 1])), probs[blank, t])
             elif(s == 1 or seq[int(l)] == seq[int(l - 1)]):
                 a[s, t] = (a[s, t - 1] + a[s - 1, t - 1]) * probs[(ord(seq[int(l)]) - 96), t]
+                #a[s, t] = logMul(logAdd(a[s, t - 1], a[s - 1, t - 1]), probs[(ord(seq[int(l)]) - 96), t])
             else:
                 a[s, t] = (a[s, t - 1] + a[s - 1, t - 1] + a[s - 2, t - 1]) * probs[ord(seq[int(l)]) - 96, t]
+                #a[s, t] = logMul(logAdd(logAdd(a[s, t - 1], a[s - 1, t - 1]), a[s - 2, t - 1]), probs[ord(seq[int(l)]) - 96, t])
 
         c = np.sum(a[start:end, t])
         a[start:end, t] /= c
@@ -64,7 +75,7 @@ def ctc(probs, seq, name):
     backward = np.log(c)
 
     for t in range(T - 2, -1, -1):
-        start = max(0, L - 2 * (T - t))
+        start = max(0, L - 2 * (T - t) - 1)
         end = min(2 * t + 2, L)
         for s in range(end - 1, -1, -1):
             l = (s - 1) / 2
@@ -72,12 +83,16 @@ def ctc(probs, seq, name):
             if(s % 2 == 0):
                 if(s == L - 1):
                     b[s, t] = b[s, t + 1] * probs[0, t]
+                    #b[s, t] = logMul(b[s, t + 1], probs[0, t])
                 else:
                     b[s, t] = (b[s, t + 1] + b[s + 1, t + 1] * probs[0, t])
+                    #b[s, t] = logMul(logAdd(b[s, t + 1], b[s + 1, t + 1]), probs[0, t])
             elif(s == L - 2 or seq[int(l)] == seq[int(l + 1)]):
                 b[s, t] = (b[s, t + 1] + b[s + 1, t + 1]) * probs[ord(seq[int(l)]) - 96, t]
+                #b[s, t] = logMul(logAdd(b[s, t + 1], b[s + 1, t + 1]), probs[ord(seq[int(l)]) - 96, t])
             else:
                 b[s, t] = (b[s, t + 1] + b[s + 1, t + 1] + b[s + 2, t + 1]) * probs[ord(seq[int(l)]) - 96, t]
+                #b[s, t] = logMul(logAdd(logAdd(b[s, t + 1], b[s + 1, t + 1]), b[s + 2, t + 1]), probs[ord(seq[int(l)]) - 96, t])
 
         c = np.sum(b[start:end, t])
         b[start:end, t] /= c
@@ -85,13 +100,14 @@ def ctc(probs, seq, name):
 
     grad = np.zeros(probs.shape)
     p = a * b
+    #p = logMul(a,b)
     for s in range(L):
         if(s % 2 == 0):
             grad[0, :] += p[s, :]
-            #p[s, :] /= probs[0, :]
+            p[s, :] /= probs[0, :]
         else:
             grad[ord(seq[int((s - 1) / 2)]) - 96, :] += p[s, :]
-            #p[s, :] /= probs[ord(seq[int((s - 1) / 2)]) - 96, :]
+            p[s, :] /= probs[ord(seq[int((s - 1) / 2)]) - 96, :]
 
     #grad = probs - grad / (probs * np.sum(p, axis=0))
 
@@ -157,8 +173,6 @@ def main():
     for i in tpl:
         p, n = i[0], i[1]
         ctc(p, seq, n)
-
-    pass
 
 
 if __name__ == '__main__':
