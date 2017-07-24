@@ -24,6 +24,7 @@ def int_ctc(probs, seqq, name):
     #    beta = np.zeros((L,T))
     beta = np.zeros((T, L))
 
+    alpha[0, 0] = 1.0
     alpha[1, 1] = probs[blank, 0]
     alpha[1, 2] = probs[0, 0]
 
@@ -31,18 +32,21 @@ def int_ctc(probs, seqq, name):
 
         start = max(1, L - ((2 * (T - t)) - 1))
 
-        for u in range(start, L):
-            l = u // 2
-            # l = (u - 1) // 2
+        # for u in range(start, L):
+        for u in range(0, L):
 
-            if seq[l] == 0 or seq[l - 2] == seq[l]:
-                alpha[t, u] += probs[seq[l], t] * (alpha[t - 1, u - 1] + alpha[t - 1, u])
+            if u == 0:
+                alpha[t, u] = alpha[t - 1, u] * probs.T[t, seq[u]]
             else:
-                alpha[t, u] += probs[seq[l], t] * (
-                alpha[t - 1, u - 2] + alpha[t - 1, u - 1] + alpha[t - 1, u])
+                if seq[u] == 0 or seq[u - 2] == seq[u]:
+                    alpha[t, u] += probs.T[t, seq[u]] * (alpha[t - 1, u - 1] + alpha[t - 1, u])
+                else:
+                    alpha[t, u] += probs.T[t, seq[u]] * (
+                        alpha[t - 1, u - 2] + alpha[t - 1, u - 1] + alpha[t - 1, u])
 
         n = np.sum(alpha[t, :], axis=0)
-        alpha[t, :] /= n
+        if n != 0:
+            alpha[t, :] /= n
 
     print('alpha: \n', alpha, '\n')
 
@@ -53,253 +57,95 @@ def int_ctc(probs, seqq, name):
 
         end = min(2 * t + 1, L)
 
-        for u in range(end - 2, 0, -1):
-            l = u // 2
+        for u in range(L - 2, 0, -1):
 
-            if seq[l] == 0 or seq[l + 2] == seq[l]:
-                beta[t, u] = probs[seq[l], t + 1] * (beta[t + 1, u + 1] + beta[t + 1, u])
+            if u == L-2:
+                beta[t, u] = beta[t + 1, u] * probs.T[t, seq[u]]
             else:
-                beta[t, u] = probs[seq[l], t + 1] * (beta[t + 1, u + 2] + beta[t + 1, u + 1] + beta[t + 1, u])
+                if seq[u] == 0 or seq[u + 2] == seq[u]:
+                    beta[t, u] = probs.T[t + 1, seq[u]] * (beta[t + 1, u + 1] + beta[t + 1, u])
+                else:
+                    beta[t, u] = probs.T[t + 1, seq[u]] * (beta[t + 1, u + 2] + beta[t + 1, u + 1] + beta[t + 1, u])
 
         n = np.sum(beta[t, :], axis=0)
-        beta[t, :] /= n
+        if n != 0:
+            beta[t, :] /= n
 
     print('beta: \n', beta, '\n')
 
+    p = np.zeros(probs.shape)
+    absum = np.zeros(T)
     grad = np.zeros(probs.shape)
+    # p = np.empty(T)
+    ab = alpha * beta
 
-    p = alpha * beta
-
-    # plt.plot(p)
-    # plt.show()
+    # for t in range(T):
+    #     absum[t] = np.sum(ab[t, :])
 
     for u in range(L):
-        # blank
         if u % 2 == 0:
-            grad[0, :] += p[:, u]
-            p[:, u] = p[:, u] / probs[0, :]
+            p[0, :] += ab[:, u]
+            for t in range(T):
+                if probs[0, t] != 0:
+                    ab[t, u] = ab[t, u] / probs[0, t]
+                else:
+                    ab[t, u] = ab[t, u]
         else:
-            grad[seq[int((u - 1) / 2)], :] += p[:, u]
-            p[:, u] = p[:, u] / (probs[seq[int((u - 1) / 2)], :])
+            p[seq[u], :] += ab[:, u]
 
-    pSum = np.sum(p, axis=1)
+            for t in range(T):
+                if probs[seq[u], t] != 0:
+                    ab[t, u] = ab[t, u] / probs[seq[u], t]
+                else:
+                    ab[t, u] = ab[t, u]
 
-    grad = probs - grad / (probs * pSum)
+    absum = np.sum(ab, axis=1)
 
-    print('grad: \n', grad, '\n')
+    for t in range(T):
+        for u in range(probs.shape[0]):
+            grad[u, t] = -((1 / p[u, t]) * absum[t])
+
     axes = plt.gca()
-    axes.set_xlim([0, 11])
+    # axes.set_xlim([0, 11])
+    axes.set_ylim([-1,  1])
+    plt.plot(grad.T)
+    plt.show()
+
+    print('ab:\n', ab, '\n\nabsum:\n', absum, '\n\np:\n', p, '\n\ngrad:\n', grad)
+
+    # for t in range(T):
+    #     for u in range(L):
+    #         grad[seq[u],t] = -(1 / (p.T[t, seq[u]] * probs.T[t, seq[u]]) * absum[t])
+
+    # print(ab.shape, ab)
+
+    axes = plt.gca()
+    # axes.set_xlim([0, 11])
     # axes.set_ylim([0,  1])
     plt.ylabel('probability')
     plt.xlabel('timesteps')
     plt.title('CTC output of {} distribution'.format(name))
-    plt.plot(grad[0].T, 'k--', label='$\\varepsilon$')
-    plt.plot(grad[1].T, label='a')
-    plt.plot(grad[2].T, label='b')
-    plt.plot(grad[3].T, label='c')
+    for i in range(ab.shape[1]):
+        plt.plot(ab.T[i], label='{}'.format(i))
+
     plt.legend()
     plt.savefig('ctc_{}_distribution'.format(name))
     plt.show()
 
-
-def _ctc(probs, seqq, name):
-
-    seq = np.array([ord(s) - 96 for s in seqq])
-    #L = 2 * len(seq) + 1    # length of sequence [9] (U')
-    L = len(seq)
-    T = probs.shape[1]      # timesteps [1, ..., 12]
-    blank = 0
-
-#    alpha = np.zeros((L,T))
-    alpha = np.zeros((T,L))
-#    beta = np.zeros((L,T))
-    beta = np.zeros((T,L))
-
-
-    alpha[1,1] = probs[blank, 0]
-    alpha[1,2] = probs[0,0]
-
-    for t in range (1, T):
-
-        start = max(1, L - ((2 * (T - t)) - 1))
-
-        for u in range(start, L):
-            l = u // 2
-            # l = (u - 1) // 2
-
-            if seq[l] == 0 or seq[l - 2] == seq[l]:
-                alpha[t, u] += probs[seq[l], t] * (alpha[t - 1, u - 1] + alpha[t - 1, u])
-                # alpha[t, u] += probs[ord(seq[l]) - 96, t] * (alpha[t - 1, u - 1] + alpha[t - 1, u])
-                # alpha[t, u] = logMul(probs[ord(seq[l]) - 96, t], (logAdd(alpha[t - 1, u - 1], alpha[t - 1, u])))
-            else:
-                alpha[t, u] += probs[seq[l], t] * (alpha[t - 1, u - 2] + alpha[t - 1, u - 1] + alpha[t - 1, u])
-                # alpha[t, u] += probs[ord(seq[l]) - 96, t] * (alpha[t - 1, u - 2] + alpha[t - 1, u - 1] + alpha[t - 1, u])
-                # alpha[t, u] = logMul(probs[ord(seq[l]) - 96, u], (logAdd(alpha[t - 1, u - 2], logAdd(alpha[t - 1, u - 1], alpha[t - 1, u]))))
-
-        n = np.sum(alpha[t, :], axis=0)
-        alpha[t,:] /= n
-
-    print('alpha: \n', alpha, '\n')
-
-    beta[-1, -1] = 1
-    beta[-1, -2] = 1
-
-    for t in range(T - 2, 0, -1):
-
-        end = min(2 * t + 1, L)
-
-        for u in range(end - 2, 0, -1):
-            l = u // 2
-
-            if seq[l] == 0 or seq[l + 2] == seq[l]:
-                beta[t, u] = probs[seq[l], t + 1] * (beta[t + 1, u + 1] + beta[t + 1, u])
-                # beta[t, u] = probs[ord(seq[l]) - 96, t + 1] * (beta[t + 1, u + 1] + beta[t + 1, u])
-            else:
-                beta[t, u] = probs[seq[l], t + 1] * (beta[t + 1, u + 2] + beta[t + 1, u + 1] + beta[t + 1, u])
-                # beta[t, u] = probs[ord(seq[l]) - 96, t + 1] * (beta[t + 1, u + 2] + beta[t + 1, u + 1] + beta[t + 1, u])
-
-        n = np.sum(beta[t, :], axis=0)
-        beta[t, :] /= n
-
-    print('beta: \n', beta, '\n')
-
-    grad = np.zeros(probs.shape)
-
-    p = alpha * beta
-
-    # plt.plot(p)
+    # print('grad: \n', grad, '\n')
+    # axes = plt.gca()
+    # axes.set_xlim([0, 11])
+    # # axes.set_ylim([0,  1])
+    # plt.ylabel('probability')
+    # plt.xlabel('timesteps')
+    # plt.title('CTC output of {} distribution'.format(name))
+    # plt.plot(grad[0], 'k--', label='$\\varepsilon$')
+    # plt.plot(grad[1], label='a')
+    # plt.plot(grad[2], label='b')
+    # plt.plot(grad[3], label='c')
+    # plt.legend()
+    # plt.savefig('ctc_{}_distribution'.format(name))
     # plt.show()
-
-    for u in range(L):
-        # blank
-        if u % 2 == 0:
-            grad[0, :] += p[:, u]
-            p[:, u] = p[:, u] / probs[0, :]
-        else:
-            grad[seq[int((u - 1) / 2)], :] += p[:, u]
-            # grad[ord(seq[int((u - 1) / 2)]) - 96, :] += p[:, u]
-            p[:, u] = p[:, u] / (probs[seq[int((u - 1) / 2)], :])
-            # p[:, u] = p[:, u] / (probs[ord(seq[int((u - 1) / 2)]) - 96, :])
-
-    pSum = np.sum(p, axis=1)
-
-    grad = probs - grad / (probs * pSum)
-
-    print('grad: \n', grad, '\n')
-    axes = plt.gca()
-    axes.set_xlim([0, 11])
-    #axes.set_ylim([0,  1])
-    plt.ylabel('probability')
-    plt.xlabel('timesteps')
-    plt.title('CTC output of {} distribution'.format(name))
-    plt.plot(grad[0].T, 'k--', label='$\\varepsilon$')
-    plt.plot(grad[1].T, label='a')
-    plt.plot(grad[2].T, label='b')
-    plt.plot(grad[3].T, label='c')
-    plt.legend()
-    plt.savefig('ctc_{}_distribution'.format(name))
-    plt.show()
-
-def ctc(probs, seqq, name):
-
-    seq = np.array([ord(s) - 96 for s in seqq])
-    # Thus, instead of considering a label ℓ, we consider a modified label L,
-    # which is just ℓ with blanks inserted between all letters, as well as at the beginning and end.
-    L = 2 * len(seq) + 1     # length of sequence [9]
-    # L = len(seq)
-    T = probs.shape[1]       # timesteps [1, ..., 12]
-    blank = 0
-
-    a = np.zeros((L, T))
-    b = np.zeros((L, T))
-
-    probs = probs - np.max(probs, axis=0)
-    probs = np.exp(probs)
-    probs = probs / np.sum(probs, axis=0)
-
-    a[0, 0] = probs[blank, 0]
-    a[1, 0] = probs[seq[0], 0]
-
-    c = np.sum(a[:, 0])
-    a[:, 0] /= c
-
-    forward = np.log(c)
-
-    for t in range(1, T):
-        start = max(0, L - 2 * (T - t))
-        end = min(2 * t + 2, L)
-        for s in range(start, L):
-            l = (s - 1) / 2
-
-            if(s % 2 == 0):
-                if(s == 0):
-                    a[s, t] = a[s, t - 1] * probs[blank, t]
-                else:
-                    a[s, t] = (a[s, t - 1] + a[s - 1, t - 1]) * probs[blank, t]
-            elif(s == 1 or seq[int(l)] == seq[int(l - 2)]):
-                a[s, t] = (a[s, t - 1] + a[s - 1, t - 1]) * probs[seq[int(l)], t]
-            else:
-                a[s, t] = (a[s, t - 1] + a[s - 1, t - 1] + a[s - 2, t - 1]) * probs[seq[int(l)], t]
-
-        c = np.sum(a[start:end, t])
-        a[start:end, t] /= c
-        forward += np.log(c)
-
-    b[-1, -1] = probs[0, -1]
-    b[-2, -1] = probs[seq[-1], -1]
-
-    c = np.sum(b[:, -1])
-    b[:, -1] /= c
-
-    backward = np.log(c)
-
-    for t in range(T - 2, -1, -1):
-        start = max(0, L - 2 * (T - t))
-        end = min(2 * t + 2, L)
-        for s in range(end - 1, -1, -1):
-            l = (s - 1) / 2
-
-            if(s % 2 == 0):
-                if(s == L - 1):
-                    b[s, t] = b[s, t + 1] * probs[0, t]
-                else:
-                    b[s, t] = (b[s, t + 1] + b[s + 1, t + 1] * probs[0, t])
-            elif(s == L - 2 or seq[int(l)] == seq[int(l + 1)]):
-                b[s, t] = (b[s, t + 1] + b[s + 1, t + 1]) * probs[seq[int(l)], t]
-            else:
-                b[s, t] = (b[s, t + 1] + b[s + 1, t + 1] + b[s + 2, t + 1]) * probs[seq[int(l)], t]
-
-        c = np.sum(b[start:end, t])
-        b[start:end, t] /= c
-        backward += np.log(c)
-
-    grad = np.zeros(probs.shape)
-    p = a * b
-    #p = logMul(a,b)
-    for s in range(L):
-        if(s % 2 == 0):
-            grad[0, :] += p[s, :]
-            p[s, :] /= probs[0, :]
-        else:
-            grad[seq[int((s - 1) / 2)], :] += p[s, :]
-            p[s, :] /= probs[seq[int((s - 1) / 2)], :]
-
-    grad = probs - grad / (probs * np.sum(p, axis=0))
-
-    print(forward, backward, '\n', grad)
-    axes = plt.gca()
-    axes.set_xlim([0, 11])
-    #axes.set_ylim([0,  1])
-    plt.ylabel('probability')
-    plt.xlabel('timesteps')
-    plt.title('CTC output of {} distribution'.format(name))
-    plt.plot(grad[0].T, 'k--', label='$\\varepsilon$')
-    plt.plot(grad[1].T, label='a')
-    plt.plot(grad[2].T, label='b')
-    plt.plot(grad[3].T, label='c')
-    plt.legend()
-    plt.savefig('ctc_{}_distribution'.format(name))
-    plt.show()
 
 def main():
 
