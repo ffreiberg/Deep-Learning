@@ -1,9 +1,5 @@
 '''
 
-http://andrew.gibiansky.com/blog/machine-learning/speech-recognition-neural-networks/
-
-https://gab41.lab41.org/speech-recognition-you-down-with-ctc-8d3b558943f0
-
 https://www.cs.toronto.edu/~graves/preprint.pdf
 
 '''
@@ -13,19 +9,19 @@ import matplotlib.pyplot as plt
 
 def int_ctc(probs, seqq, name):
 
+    # cast from char to int
     seq = np.array([ord(s) - 96 for s in seqq])
     # L = 2 * len(seq) + 1    # length of sequence [9] (U')
+    # length of sequence [9] (U')
     L = len(seq)
-    T = probs.shape[1]  # timesteps [1, ..., 12]
-    blank = 0
+    # timesteps [1, ..., 12]
+    T = probs.shape[1]
 
-    #    alpha = np.zeros((L,T))
     alpha = np.zeros((T, L))
-    #    beta = np.zeros((L,T))
     beta = np.zeros((T, L))
 
     alpha[0, 0] = 1.0
-    alpha[1, 1] = probs[blank, 0]
+    alpha[1, 1] = probs[0, 0]
     alpha[1, 2] = probs[0, 0]
 
     for t in range(1, T):
@@ -34,7 +30,6 @@ def int_ctc(probs, seqq, name):
 
         # for u in range(start, L):
         for u in range(0, L):
-
             if u == 0:
                 alpha[t, u] = alpha[t - 1, u] * probs.T[t, seq[u]]
             else:
@@ -44,11 +39,12 @@ def int_ctc(probs, seqq, name):
                     alpha[t, u] += probs.T[t, seq[u]] * (
                         alpha[t - 1, u - 2] + alpha[t - 1, u - 1] + alpha[t - 1, u])
 
+        # normalize alpha for each timestep
         n = np.sum(alpha[t, :], axis=0)
         if n != 0:
             alpha[t, :] /= n
 
-    print('alpha: \n', alpha, '\n')
+    # print('alpha: \n', alpha, '\n')
 
     beta[-1, -1] = 1
     beta[-1, -2] = 1
@@ -57,8 +53,8 @@ def int_ctc(probs, seqq, name):
 
         end = min(2 * t + 1, L)
 
+        # for u in range(end - 2, 0, -1):
         for u in range(L - 2, 0, -1):
-
             if u == L-2:
                 beta[t, u] = beta[t + 1, u] * probs.T[t, seq[u]]
             else:
@@ -67,21 +63,18 @@ def int_ctc(probs, seqq, name):
                 else:
                     beta[t, u] = probs.T[t + 1, seq[u]] * (beta[t + 1, u + 2] + beta[t + 1, u + 1] + beta[t + 1, u])
 
+        # normalize beta for each timestep
         n = np.sum(beta[t, :], axis=0)
         if n != 0:
             beta[t, :] /= n
 
-    print('beta: \n', beta, '\n')
+    # print('beta: \n', beta, '\n')
 
+    # \sum_{u \in B(z,k)} \frac{\alpha(t,u)\beta(t,u)}{y_{k}^{t}}
     sumuB = np.zeros(probs.shape)
-    # absum = np.zeros(T)
     grad = np.zeros(probs.shape)
-    # p = np.empty(T)
     ab = alpha * beta
 
-    axes = plt.gca()
-    # axes.set_xlim([0, 11])
-    # axes.set_ylim([0,  1])
     plt.ylabel('probability')
     plt.xlabel('timesteps')
     plt.title('$\\alpha * \\beta$ output of {} distribution'.format(name))
@@ -89,11 +82,8 @@ def int_ctc(probs, seqq, name):
         plt.plot(ab.T[i], label='{}'.format(i))
 
     plt.legend()
-    plt.savefig('ab_{}_distribution'.format(name))
+    # plt.savefig('ab_{}_distribution'.format(name))
     plt.show()
-
-    # for t in range(T):
-    #     absum[t] = np.sum(ab[t, :])
 
     for u in range(L):
         if u % 2 == 0:
@@ -118,13 +108,10 @@ def int_ctc(probs, seqq, name):
     for t in range(T):
         for u in range(L):
             if p[seq[u], t] != 0 or probs[seq[u], t] != 0:
-                grad[seq[u], t] = (sumuB[seq[u], t] / p[seq[u], t] * probs[seq[u], t])
+                grad[seq[u], t] = -(sumuB[seq[u], t] / p[seq[u], t] * probs[seq[u], t])
             else:
-                grad[seq[u], t] = sumuB[seq[u], t]
+                grad[seq[u], t] = -sumuB[seq[u], t]
 
-    axes = plt.gca()
-    # axes.set_xlim([0, 11])
-    # axes.set_ylim([-1,  1])
     plt.ylabel('probability')
     plt.xlabel('timesteps')
     plt.title('CTC output of {} distribution'.format(name))
@@ -135,16 +122,8 @@ def int_ctc(probs, seqq, name):
     plt.plot(grad[3], label='c')
 
     plt.legend()
-    plt.savefig('ctc_{}_distribution'.format(name))
+    # plt.savefig('ctc_{}_distribution'.format(name))
     plt.show()
-
-    print('ab:\n', ab, '\n\nabsum:\n', absum, '\n\nsumuB:\n', sumuB, '\n\ngrad:\n', grad)
-
-    # for t in range(T):
-    #     for u in range(L):
-    #         grad[seq[u],t] = -(1 / (p.T[t, seq[u]] * probs.T[t, seq[u]]) * absum[t])
-
-    # print(ab.shape, ab)
 
 
 def main():
