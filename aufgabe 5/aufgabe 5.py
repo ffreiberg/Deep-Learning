@@ -73,25 +73,38 @@ def int_ctc(probs, seqq, name):
 
     print('beta: \n', beta, '\n')
 
-    p = np.zeros(probs.shape)
-    absum = np.zeros(T)
+    sumuB = np.zeros(probs.shape)
+    # absum = np.zeros(T)
     grad = np.zeros(probs.shape)
     # p = np.empty(T)
     ab = alpha * beta
+
+    axes = plt.gca()
+    # axes.set_xlim([0, 11])
+    # axes.set_ylim([0,  1])
+    plt.ylabel('probability')
+    plt.xlabel('timesteps')
+    plt.title('$\\alpha * \\beta$ output of {} distribution'.format(name))
+    for i in range(ab.shape[1]):
+        plt.plot(ab.T[i], label='{}'.format(i))
+
+    plt.legend()
+    plt.savefig('ab_{}_distribution'.format(name))
+    plt.show()
 
     # for t in range(T):
     #     absum[t] = np.sum(ab[t, :])
 
     for u in range(L):
         if u % 2 == 0:
-            p[0, :] += ab[:, u]
+            sumuB[0, :] += ab[:, u]
             for t in range(T):
                 if probs[0, t] != 0:
                     ab[t, u] = ab[t, u] / probs[0, t]
                 else:
                     ab[t, u] = ab[t, u]
         else:
-            p[seq[u], :] += ab[:, u]
+            sumuB[seq[u], :] += ab[:, u]
 
             for t in range(T):
                 if probs[seq[u], t] != 0:
@@ -100,18 +113,32 @@ def int_ctc(probs, seqq, name):
                     ab[t, u] = ab[t, u]
 
     absum = np.sum(ab, axis=1)
+    p = absum * probs
 
     for t in range(T):
-        for u in range(probs.shape[0]):
-            grad[u, t] = -((1 / p[u, t]) * absum[t])
+        for u in range(L):
+            if p[seq[u], t] != 0 or probs[seq[u], t] != 0:
+                grad[seq[u], t] = (sumuB[seq[u], t] / p[seq[u], t] * probs[seq[u], t])
+            else:
+                grad[seq[u], t] = sumuB[seq[u], t]
 
     axes = plt.gca()
     # axes.set_xlim([0, 11])
-    axes.set_ylim([-1,  1])
-    plt.plot(grad.T)
+    # axes.set_ylim([-1,  1])
+    plt.ylabel('probability')
+    plt.xlabel('timesteps')
+    plt.title('CTC output of {} distribution'.format(name))
+
+    plt.plot(grad[0], 'k--', label='$\\varepsilon$')
+    plt.plot(grad[1], label='a')
+    plt.plot(grad[2], label='b')
+    plt.plot(grad[3], label='c')
+
+    plt.legend()
+    plt.savefig('ctc_{}_distribution'.format(name))
     plt.show()
 
-    print('ab:\n', ab, '\n\nabsum:\n', absum, '\n\np:\n', p, '\n\ngrad:\n', grad)
+    print('ab:\n', ab, '\n\nabsum:\n', absum, '\n\nsumuB:\n', sumuB, '\n\ngrad:\n', grad)
 
     # for t in range(T):
     #     for u in range(L):
@@ -119,33 +146,6 @@ def int_ctc(probs, seqq, name):
 
     # print(ab.shape, ab)
 
-    axes = plt.gca()
-    # axes.set_xlim([0, 11])
-    # axes.set_ylim([0,  1])
-    plt.ylabel('probability')
-    plt.xlabel('timesteps')
-    plt.title('CTC output of {} distribution'.format(name))
-    for i in range(ab.shape[1]):
-        plt.plot(ab.T[i], label='{}'.format(i))
-
-    plt.legend()
-    plt.savefig('ctc_{}_distribution'.format(name))
-    plt.show()
-
-    # print('grad: \n', grad, '\n')
-    # axes = plt.gca()
-    # axes.set_xlim([0, 11])
-    # # axes.set_ylim([0,  1])
-    # plt.ylabel('probability')
-    # plt.xlabel('timesteps')
-    # plt.title('CTC output of {} distribution'.format(name))
-    # plt.plot(grad[0], 'k--', label='$\\varepsilon$')
-    # plt.plot(grad[1], label='a')
-    # plt.plot(grad[2], label='b')
-    # plt.plot(grad[3], label='c')
-    # plt.legend()
-    # plt.savefig('ctc_{}_distribution'.format(name))
-    # plt.show()
 
 def main():
 
